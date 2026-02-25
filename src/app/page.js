@@ -70,14 +70,16 @@ export default function Home() {
 
     try {
       // Gunakan no-cors agar browser tidak memblokir request ke Google
-      await fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+     const res = await fetch("/api/checkin", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(payload),
+});
+
+const json = await res.json();
+setStatus(json.ok ? "✅ Berhasil" : "❌ " + json.error);
 
       // Karena no-cors, kita anggap sukses jika tidak ada error network
       setStatus("✅ Data Terkirim! Cek Google Sheet Anda.");
