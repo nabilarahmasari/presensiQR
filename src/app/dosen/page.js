@@ -4,7 +4,7 @@ import QRCode from "react-qr-code";
 
 export default function DosenPage() {
   // GANTI URL INI DENGAN DEPLOYMENT GAS ANDA
-  const GAS_URL = "link script";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwg4SESdJg9Z8H02adL8IDNDehmkXlBowfn1zXE2KKykB4_BmLvGigqYr7veUzFF5Mn/exec";
   
 
   const [loading, setLoading] = useState(false);
