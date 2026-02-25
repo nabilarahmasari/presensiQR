@@ -7,7 +7,7 @@ export default function Home() {
 
   const generateQR = async () => {
     const res = await fetch(
-      "https://script.google.com/macros/s/AKfycbx7KlEFRfvt9aGcxUBen9uGTlvLRlMiJy1jBp2KUDZERLH6fmRSgNQsFVI6pZ1_5u5o/exec?path=presence/qr/generate",
+      "https://script.google.com/macros/s/AKfycbwg4SESdJg9Z8H02adL8IDNDehmkXlBowfn1zXE2KKykB4_BmLvGigqYr7veUzFF5Mn/exec",
       {
         method: "POST",
         body: JSON.stringify({
