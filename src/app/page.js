@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import QRCode from "react-qr-code";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
@@ -16,32 +16,50 @@ export default function Home() {
     course_id: "cloud-101",
     session_id: "sesi-02"
   });
+  const [kehadiran, setKehadiran] = useState([]);
 
-  const generateQR = async () => {
+  const generateQR = useCallback(async () => {
     const res = await fetch(`${GAS_URL}?path=presence/qr/generate`, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(formDosen),
     });
-
     const json = await res.json();
-
     if (json.ok) {
       setQrData(json.data);
     } else {
       alert(json.error);
     }
-  };
+  }, [formDosen]);
 
+  const fetchKehadiran = useCallback(async () => {
+    const res = await fetch(
+      `${GAS_URL}?path=presence/list&course_id=${formDosen.course_id}&session_id=${formDosen.session_id}`
+    );
+    const json = await res.json();
+    if (json.ok) {
+      setKehadiran(json.data.items);
+    }
+  }, [formDosen]);
+
+  // Auto refresh QR tiap 2 menit
   useEffect(() => {
     if (!qrData) return;
-
     const interval = setInterval(() => {
       generateQR();
     }, 120000);
-
     return () => clearInterval(interval);
-  }, [qrData]);
+  }, [qrData, generateQR]);
+
+  // Auto refresh list kehadiran tiap 10 detik
+  useEffect(() => {
+    if (!qrData) return;
+    fetchKehadiran();
+    const interval = setInterval(() => {
+      fetchKehadiran();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [qrData, fetchKehadiran]);
 
   /* ================= MAHASISWA ================= */
 
@@ -113,48 +131,93 @@ export default function Home() {
       )}
 
       {role === "dosen" && (
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-          <button onClick={() => setRole(null)}>← Kembali</button>
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-4xl">
+          <button onClick={() => setRole(null)} className="mb-4 text-gray-500 hover:text-gray-800">← Kembali</button>
 
-          <input className="border p-2 w-full my-2"
-            value={formDosen.course_id}
-            onChange={(e) => setFormDosen({ ...formDosen, course_id: e.target.value })}
-          />
+          <div className="flex gap-8">
 
-          <input className="border p-2 w-full my-2"
-            value={formDosen.session_id}
-            onChange={(e) => setFormDosen({ ...formDosen, session_id: e.target.value })}
-          />
+            {/* Kolom kiri: form + QR */}
+            <div className="flex-1">
+              <input
+                className="border p-2 w-full my-2 rounded-lg"
+                placeholder="Course ID"
+                value={formDosen.course_id}
+                onChange={(e) => setFormDosen({ ...formDosen, course_id: e.target.value })}
+              />
+              <input
+                className="border p-2 w-full my-2 rounded-lg"
+                placeholder="Session ID"
+                value={formDosen.session_id}
+                onChange={(e) => setFormDosen({ ...formDosen, session_id: e.target.value })}
+              />
+              <button onClick={generateQR} className="w-full bg-indigo-600 text-white py-2 rounded-xl mt-1">
+                Generate QR
+              </button>
 
-          <button onClick={generateQR} className="w-full bg-indigo-600 text-white py-2 rounded-xl">
-            Generate QR
-          </button>
-
-          {qrData && (
-            <div className="text-center mt-6">
-              <QRCode value={qrData.qr_token} size={200} />
-              <p className="text-xs mt-3">Expired: {new Date(qrData.expires_at).toLocaleTimeString()}</p>
+              {qrData && (
+                <div className="text-center mt-6">
+                  <QRCode value={qrData.qr_token} size={200} />
+                  <p className="text-xs mt-3 text-gray-500">
+                    Expired: {new Date(qrData.expires_at).toLocaleTimeString()}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Kolom kanan: list kehadiran */}
+            {qrData && (
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-bold text-lg">Kehadiran</h2>
+                  <span className="bg-indigo-100 text-indigo-700 text-sm font-semibold px-3 py-1 rounded-full">
+                    {kehadiran.length} hadir
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {kehadiran.length === 0 && (
+                    <p className="text-gray-400 text-sm text-center mt-8">Belum ada yang absen</p>
+                  )}
+                  {kehadiran.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between bg-gray-50 border rounded-xl px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="bg-indigo-600 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        <div>
+                          <p className="font-semibold text-sm">{item.user_id}</p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(item.timestamp).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-green-600 text-xs font-semibold">✓ Hadir</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       )}
 
       {role === "mahasiswa" && (
         <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-          <button onClick={() => setRole(null)}>← Kembali</button>
+          <button onClick={() => setRole(null)} className="mb-4 text-gray-500 hover:text-gray-800">← Kembali</button>
 
           <div id="reader" className="mb-4"></div>
 
           <input
             placeholder="NIM"
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full mb-2 rounded-lg"
             value={nim}
             onChange={(e) => setNim(e.target.value)}
           />
 
           <input
             placeholder="Nama"
-            className="border p-2 w-full mb-2"
+            className="border p-2 w-full mb-2 rounded-lg"
             value={nama}
             onChange={(e) => setNama(e.target.value)}
           />
@@ -166,7 +229,7 @@ export default function Home() {
             Absen
           </button>
 
-          <p className="mt-3 text-center">{status}</p>
+          <p className="mt-3 text-center font-medium">{status}</p>
         </div>
       )}
 
