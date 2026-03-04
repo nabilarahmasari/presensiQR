@@ -1,7 +1,7 @@
 export async function POST(req) {
   const body = await req.json();
 
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbwg4SESdJg9Z8H02adL8IDNDehmkXlBowfn1zXE2KKykB4_BmLvGigqYr7veUzFF5Mn/exec?path=presence/checkin";
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbyxBEvPexUYkHe5vz_h6Rha3MrrET97N8m9kckx9t05HllAvUvT-kCoP6ZGsEk8q0IN/exec?path=presence/checkin";
 
   const response = await fetch(GAS_URL, {
     method: "POST",
