@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
 Chart as ChartJS,
@@ -21,14 +21,33 @@ CategoryScale,
 Legend
 );
 
-const DEVICE_ID = "dev-001";
+function getDeviceId(){
+
+let id = localStorage.getItem("device_id");
+
+if(!id){
+
+id = "dev-" + crypto.randomUUID();
+
+localStorage.setItem("device_id", id);
+
+}
+
+return id;
+
+}
+
+const DEVICE_ID = getDeviceId();
 
 export default function Page(){
 
-const [samples,setSamples] = useState([]);
+const bufferRef = useRef([]);
+
 const [x,setX] = useState(0);
 const [y,setY] = useState(0);
 const [z,setZ] = useState(0);
+
+const [status,setStatus] = useState("idle");
 
 const [chartData,setChartData] = useState({
 labels:[],
@@ -40,7 +59,10 @@ datasets:[
 });
 
 
-// membaca accelerometer
+/* =============================
+   ACCELEROMETER READER
+============================= */
+
 useEffect(()=>{
 
 function handleMotion(event){
@@ -60,22 +82,26 @@ setX(sample.x);
 setY(sample.y);
 setZ(sample.z);
 
-setSamples(prev => [...prev,sample]);
+/* simpan ke buffer */
+
+bufferRef.current.push(sample);
+
+/* update chart */
 
 setChartData(prev=>{
 
-const newLabels=[...prev.labels,new Date().toLocaleTimeString()].slice(-20);
+const labels=[...prev.labels,new Date().toLocaleTimeString()].slice(-30);
 
-const newX=[...prev.datasets[0].data,sample.x].slice(-20);
-const newY=[...prev.datasets[1].data,sample.y].slice(-20);
-const newZ=[...prev.datasets[2].data,sample.z].slice(-20);
+const xData=[...prev.datasets[0].data,sample.x].slice(-30);
+const yData=[...prev.datasets[1].data,sample.y].slice(-30);
+const zData=[...prev.datasets[2].data,sample.z].slice(-30);
 
 return{
-labels:newLabels,
+labels,
 datasets:[
-{...prev.datasets[0],data:newX},
-{...prev.datasets[1],data:newY},
-{...prev.datasets[2],data:newZ}
+{...prev.datasets[0],data:xData},
+{...prev.datasets[1],data:yData},
+{...prev.datasets[2],data:zData}
 ]
 };
 
@@ -90,19 +116,35 @@ return ()=>window.removeEventListener("devicemotion",handleMotion);
 },[]);
 
 
-// kirim batch ke server
+/* =============================
+   BATCH UPLOAD
+============================= */
+
 useEffect(()=>{
 
 const interval=setInterval(async()=>{
 
-if(samples.length===0) return;
+const buffer=bufferRef.current;
 
-const batch=[...samples];
+if(buffer.length===0) return;
 
-setSamples([]);
+setStatus("uploading");
 
-await fetch("/api/accel",{
+/* ambil batch */
+
+const batch=[...buffer];
+
+/* reset buffer */
+
+bufferRef.current=[];
+
+try{
+
+await fetch("/api/checkin/accel",{
 method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
 body:JSON.stringify({
 device_id:DEVICE_ID,
 ts:new Date().toISOString(),
@@ -110,11 +152,40 @@ samples:batch
 })
 });
 
+setStatus("uploaded");
+
+}catch(e){
+
+setStatus("error");
+
+}
+
 },3000);
 
 return ()=>clearInterval(interval);
 
-},[samples]);
+},[]);
+
+
+/* =============================
+   IOS PERMISSION
+============================= */
+
+async function requestPermission(){
+
+if(typeof DeviceMotionEvent !== "undefined" &&
+typeof DeviceMotionEvent.requestPermission === "function"){
+
+await DeviceMotionEvent.requestPermission();
+
+}
+
+}
+
+
+/* =============================
+   UI
+============================= */
 
 return(
 
@@ -126,6 +197,16 @@ return(
 
 <p className="device">
 Device ID : <b>{DEVICE_ID}</b>
+</p>
+
+
+<button className="btn" onClick={requestPermission}>
+Enable Sensor
+</button>
+
+
+<p className="status">
+Upload Status : {status}
 </p>
 
 
@@ -171,8 +252,25 @@ margin-bottom:10px;
 
 .device{
 text-align:center;
-margin-bottom:30px;
+margin-bottom:20px;
 color:#555;
+}
+
+.btn{
+display:block;
+margin:10px auto 20px;
+padding:10px 20px;
+border:none;
+background:#1677ff;
+color:white;
+border-radius:8px;
+cursor:pointer;
+}
+
+.status{
+text-align:center;
+margin-bottom:20px;
+color:#666;
 }
 
 .cards{

@@ -1,5 +1,6 @@
 const GAS_URL =
-"https://script.google.com/macros/s/AKfycbyxBEvPexUYkHe5vz_h6Rha3MrrET97N8m9kckx9t05HllAvUvT-kCoP6ZGsEk8q0IN/exec";
+"https://script.google.com/macros/s/AKfycbxa2DD20hVIMol4-LRpOxdR5fN_kRjh4Itm-sADeDV8VDLRb8SgZHWcypS5luyzwOeS/exec";
+
 
 /* =========================
    POST TELEMETRY
@@ -14,7 +15,7 @@ export async function POST(req){
     method:"POST",
 
     headers:{
-      "Content-Type":"text/plain"
+      "Content-Type":"application/json"
     },
 
     body:JSON.stringify(body)
@@ -29,7 +30,7 @@ export async function POST(req){
 
 
 /* =========================
-   GET LATEST DATA
+   GET LATEST
 ========================= */
 
 export async function GET(req){
