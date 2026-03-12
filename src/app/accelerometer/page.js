@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -21,27 +23,11 @@ CategoryScale,
 Legend
 );
 
-function getDeviceId(){
-
-let id = localStorage.getItem("device_id");
-
-if(!id){
-
-id = "dev-" + crypto.randomUUID();
-
-localStorage.setItem("device_id", id);
-
-}
-
-return id;
-
-}
-
-const DEVICE_ID = getDeviceId();
-
 export default function Page(){
 
 const bufferRef = useRef([]);
+
+const [deviceId,setDeviceId] = useState(null);
 
 const [x,setX] = useState(0);
 const [y,setY] = useState(0);
@@ -57,6 +43,26 @@ datasets:[
 {label:"Z",data:[],borderColor:"#52c41a"}
 ]
 });
+
+/* =============================
+   DEVICE ID GENERATOR
+============================= */
+
+useEffect(()=>{
+
+let id = localStorage.getItem("device_id");
+
+if(!id){
+
+id = "dev-" + crypto.randomUUID();
+
+localStorage.setItem("device_id",id);
+
+}
+
+setDeviceId(id);
+
+},[]);
 
 
 /* =============================
@@ -82,11 +88,7 @@ setX(sample.x);
 setY(sample.y);
 setZ(sample.z);
 
-/* simpan ke buffer */
-
 bufferRef.current.push(sample);
-
-/* update chart */
 
 setChartData(prev=>{
 
@@ -126,15 +128,11 @@ const interval=setInterval(async()=>{
 
 const buffer=bufferRef.current;
 
-if(buffer.length===0) return;
+if(buffer.length===0 || !deviceId) return;
 
 setStatus("uploading");
 
-/* ambil batch */
-
 const batch=[...buffer];
-
-/* reset buffer */
 
 bufferRef.current=[];
 
@@ -146,7 +144,7 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-device_id:DEVICE_ID,
+device_id:deviceId,
 ts:new Date().toISOString(),
 samples:batch
 })
@@ -160,11 +158,11 @@ setStatus("error");
 
 }
 
-},3000);
+},5000);   // lebih aman dari quota GAS
 
 return ()=>clearInterval(interval);
 
-},[]);
+},[deviceId]);
 
 
 /* =============================
@@ -196,19 +194,16 @@ return(
 </h1>
 
 <p className="device">
-Device ID : <b>{DEVICE_ID}</b>
+Device ID : <b>{deviceId || "loading..."}</b>
 </p>
-
 
 <button className="btn" onClick={requestPermission}>
 Enable Sensor
 </button>
 
-
 <p className="status">
 Upload Status : {status}
 </p>
-
 
 <div className="cards">
 
@@ -229,12 +224,10 @@ Upload Status : {status}
 
 </div>
 
-
 <div className="chartCard">
 <h2>Realtime Accelerometer</h2>
 <Line data={chartData}/>
 </div>
-
 
 <style jsx>{`
 
