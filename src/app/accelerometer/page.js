@@ -25,7 +25,10 @@ Legend
 
 export default function Page(){
 
+/* ================= STATE ================= */
+
 const bufferRef = useRef([]);
+const intervalRef = useRef(null);
 
 const [deviceId,setDeviceId] = useState(null);
 
@@ -34,19 +37,38 @@ const [y,setY] = useState(0);
 const [z,setZ] = useState(0);
 
 const [status,setStatus] = useState("idle");
+const [log,setLog] = useState("Menunggu instruksi...");
+
+const [isRecording,setIsRecording] = useState(false);
+
+
+/* ================= CHART REALTIME ================= */
 
 const [chartData,setChartData] = useState({
 labels:[],
 datasets:[
-{label:"X",data:[],borderColor:"#ff4d4f"},
-{label:"Y",data:[],borderColor:"#1677ff"},
-{label:"Z",data:[],borderColor:"#52c41a"}
+{label:"Sumbu X",data:[],borderColor:"#8B4513"},
+{label:"Sumbu Y",data:[],borderColor:"#DAA520"},
+{label:"Sumbu Z",data:[],borderColor:"#A0522D"}
 ]
 });
 
-/* =============================
-   DEVICE ID GENERATOR
-============================= */
+
+/* ================= CHART SERVER ================= */
+
+const [serverChart,setServerChart] = useState({
+labels:["Sumbu X","Sumbu Y","Sumbu Z"],
+datasets:[
+{
+label:"Server Data",
+data:[0,0,0],
+backgroundColor:["#8B4513","#DAA520","#A0522D"]
+}
+]
+});
+
+
+/* ================= DEVICE ID ================= */
 
 useEffect(()=>{
 
@@ -54,7 +76,7 @@ let id = localStorage.getItem("device_id");
 
 if(!id){
 
-id = "dev-" + crypto.randomUUID();
+id = "DEV-" + crypto.randomUUID().slice(0,8).toUpperCase();
 
 localStorage.setItem("device_id",id);
 
@@ -65,11 +87,11 @@ setDeviceId(id);
 },[]);
 
 
-/* =============================
-   ACCELEROMETER READER
-============================= */
+/* ================= ACCELEROMETER ================= */
 
 useEffect(()=>{
+
+if(!isRecording) return;
 
 function handleMotion(event){
 
@@ -92,11 +114,11 @@ bufferRef.current.push(sample);
 
 setChartData(prev=>{
 
-const labels=[...prev.labels,new Date().toLocaleTimeString()].slice(-30);
+const labels=[...prev.labels,new Date().toLocaleTimeString()].slice(-20);
 
-const xData=[...prev.datasets[0].data,sample.x].slice(-30);
-const yData=[...prev.datasets[1].data,sample.y].slice(-30);
-const zData=[...prev.datasets[2].data,sample.z].slice(-30);
+const xData=[...prev.datasets[0].data,sample.x].slice(-20);
+const yData=[...prev.datasets[1].data,sample.y].slice(-20);
+const zData=[...prev.datasets[2].data,sample.z].slice(-20);
 
 return{
 labels,
@@ -113,22 +135,26 @@ datasets:[
 
 window.addEventListener("devicemotion",handleMotion);
 
-return ()=>window.removeEventListener("devicemotion",handleMotion);
+return ()=>{
 
-},[]);
+window.removeEventListener("devicemotion",handleMotion);
+
+};
+
+},[isRecording]);
 
 
-/* =============================
-   BATCH UPLOAD
-============================= */
+/* ================= BATCH UPLOAD (3 DETIK) ================= */
 
 useEffect(()=>{
 
-const interval=setInterval(async()=>{
+if(!isRecording || !deviceId) return;
 
-const buffer=bufferRef.current;
+intervalRef.current = setInterval(async()=>{
 
-if(buffer.length===0 || !deviceId) return;
+const buffer = bufferRef.current;
+
+if(buffer.length===0) return;
 
 setStatus("uploading");
 
@@ -152,22 +178,74 @@ samples:batch
 
 setStatus("uploaded");
 
-}catch(e){
+setLog(`Batch ${batch.length} data terkirim`);
+
+}catch{
 
 setStatus("error");
 
+setLog("Upload gagal");
+
 }
 
-},5000);   // lebih aman dari quota GAS
+},3000); // 3 DETIK
 
-return ()=>clearInterval(interval);
+return ()=>{
 
-},[deviceId]);
+clearInterval(intervalRef.current);
+
+};
+
+},[deviceId,isRecording]);
 
 
-/* =============================
-   IOS PERMISSION
-============================= */
+/* ================= GET LATEST ================= */
+
+async function getLatest(){
+
+if(!deviceId) return;
+
+setLog("Mengambil data terbaru dari server...");
+
+try{
+
+const res = await fetch(`/api/checkin/accel?device_id=${deviceId}`);
+
+const json = await res.json();
+
+if(!json.ok){
+
+setLog("Data tidak ditemukan");
+
+return;
+
+}
+
+const d = json.data;
+
+setServerChart({
+labels:["Sumbu X","Sumbu Y","Sumbu Z"],
+datasets:[
+{
+label:"Server Data",
+data:[d.x,d.y,d.z],
+backgroundColor:["#8B4513","#DAA520","#A0522D"]
+}
+]
+});
+
+setLog(`Data terbaru diterima (${d.t})`);
+
+}catch{
+
+setLog("Gagal mengambil data");
+
+}
+
+}
+
+
+/* ================= PERMISSION ================= */
 
 async function requestPermission(){
 
@@ -181,125 +259,208 @@ await DeviceMotionEvent.requestPermission();
 }
 
 
-/* =============================
-   UI
-============================= */
+/* ================= START / STOP ================= */
+
+async function toggleRecording(){
+
+if(!isRecording){
+
+await requestPermission();
+
+bufferRef.current=[];
+
+setIsRecording(true);
+
+setLog("Sensor mulai merekam");
+
+}else{
+
+setIsRecording(false);
+
+bufferRef.current=[];
+
+clearInterval(intervalRef.current);
+
+setStatus("idle");
+
+setLog("Sensor dihentikan");
+
+}
+
+}
+
+
+/* ================= UI ================= */
 
 return(
 
 <div className="container">
 
-<h1 className="title">
-📱 Accelerometer Dashboard
-</h1>
+<header className="header">
 
-<p className="device">
-Device ID : <b>{deviceId || "loading..."}</b>
-</p>
+<h1>📡 Telemetri Sensor</h1>
+<p>Modul Accelerometer</p>
 
-<button className="btn" onClick={requestPermission}>
-Enable Sensor
-</button>
+</header>
 
-<p className="status">
-Upload Status : {status}
-</p>
-
-<div className="cards">
 
 <div className="card">
-<h3>X Axis</h3>
+
+<h2>Status Perangkat</h2>
+
+<div className="deviceBox">
+
+<div className="device">{deviceId}</div>
+<div className="device">Sensor Aktif : {isRecording ? "YA" : "TIDAK"}</div>
+
+</div>
+
+<div className="axisRow">
+
+<div className="axis">
+<span>Sumbu X</span>
 <p>{x.toFixed(2)}</p>
 </div>
 
-<div className="card">
-<h3>Y Axis</h3>
+<div className="axis">
+<span>Sumbu Y</span>
 <p>{y.toFixed(2)}</p>
 </div>
 
-<div className="card">
-<h3>Z Axis</h3>
+<div className="axis">
+<span>Sumbu Z</span>
 <p>{z.toFixed(2)}</p>
 </div>
 
 </div>
 
-<div className="chartCard">
-<h2>Realtime Accelerometer</h2>
-<Line data={chartData}/>
+<button className="mainBtn" onClick={toggleRecording}>
+{isRecording ? "⏹ Stop Sensor" : "▶ Mulai Sensor"}
+</button>
+
+<p className="status">Upload Status : {status}</p>
+
 </div>
+
+
+<div className="card">
+
+<h2>Grafik Real-Time</h2>
+
+<Line data={chartData}/>
+
+</div>
+
+
+<div className="card">
+
+<h2>Riwayat Aktivitas</h2>
+
+<p>{log}</p>
+
+</div>
+
+
+<div className="card">
+
+<h2>Tarik Data Server</h2>
+
+<button className="serverBtn" onClick={getLatest}>
+🔄 Cek Data Terbaru
+</button>
+
+<Line data={serverChart}/>
+
+</div>
+
 
 <style jsx>{`
 
 .container{
+background:linear-gradient(180deg,#FFF8DC,#F5DEB3);
+min-height:100vh;
 padding:40px;
 font-family:Arial;
-background:#f4f6f8;
-min-height:100vh;
 }
 
-.title{
-text-align:center;
-margin-bottom:10px;
-}
-
-.device{
-text-align:center;
-margin-bottom:20px;
-color:#555;
-}
-
-.btn{
-display:block;
-margin:10px auto 20px;
-padding:10px 20px;
-border:none;
-background:#1677ff;
+.header{
+background:#8B4513;
 color:white;
-border-radius:8px;
-cursor:pointer;
-}
-
-.status{
+padding:20px;
+border-radius:15px;
 text-align:center;
-margin-bottom:20px;
-color:#666;
-}
-
-.cards{
-display:flex;
-gap:20px;
-justify-content:center;
 margin-bottom:30px;
-flex-wrap:wrap;
 }
 
 .card{
 background:white;
-padding:20px;
-width:150px;
+border-radius:15px;
+padding:25px;
+margin-bottom:25px;
+box-shadow:0 6px 20px rgba(0,0,0,0.1);
+}
+
+.deviceBox{
+display:flex;
+gap:20px;
+margin-bottom:20px;
+}
+
+.device{
+background:#FFF8DC;
+padding:10px 15px;
+border-radius:8px;
+}
+
+.axisRow{
+display:flex;
+gap:20px;
+margin-bottom:20px;
+}
+
+.axis{
+flex:1;
+background:#FFF8DC;
+padding:15px;
 border-radius:10px;
-box-shadow:0 4px 10px rgba(0,0,0,0.1);
 text-align:center;
 }
 
-.card h3{
-margin:0;
-font-size:16px;
+.axis span{
+font-size:14px;
 color:#777;
 }
 
-.card p{
-font-size:28px;
+.axis p{
+font-size:24px;
 font-weight:bold;
-margin-top:10px;
+color:#8B4513;
 }
 
-.chartCard{
-background:white;
-padding:30px;
+.mainBtn{
+width:100%;
+background:#A0522D;
+color:white;
+border:none;
+padding:12px;
 border-radius:10px;
-box-shadow:0 4px 10px rgba(0,0,0,0.1);
+cursor:pointer;
+font-weight:bold;
+}
+
+.serverBtn{
+background:#DAA520;
+border:none;
+padding:10px 20px;
+border-radius:10px;
+color:white;
+cursor:pointer;
+margin-bottom:20px;
+}
+
+.status{
+margin-top:10px;
+color:#555;
 }
 
 `}</style>
