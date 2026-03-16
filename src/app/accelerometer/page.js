@@ -144,7 +144,7 @@ window.removeEventListener("devicemotion",handleMotion);
 },[isRecording]);
 
 
-/* ================= BATCH UPLOAD (3 DETIK) ================= */
+/* ================= BATCH UPLOAD ================= */
 
 useEffect(()=>{
 
@@ -177,18 +177,16 @@ samples:batch
 });
 
 setStatus("uploaded");
-
 setLog(`Batch ${batch.length} data terkirim`);
 
 }catch{
 
 setStatus("error");
-
 setLog("Upload gagal");
 
 }
 
-},3000); // 3 DETIK
+},3000);
 
 return ()=>{
 
@@ -199,7 +197,7 @@ clearInterval(intervalRef.current);
 },[deviceId,isRecording]);
 
 
-/* ================= GET LATEST ================= */
+/* ================= GET SERVER ================= */
 
 async function getLatest(){
 
@@ -210,13 +208,11 @@ setLog("Mengambil data terbaru dari server...");
 try{
 
 const res = await fetch(`/api/checkin/accel?device_id=${deviceId}`);
-
 const json = await res.json();
 
 if(!json.ok){
 
 setLog("Data tidak ditemukan");
-
 return;
 
 }
@@ -245,44 +241,23 @@ setLog("Gagal mengambil data");
 }
 
 
-/* ================= PERMISSION ================= */
-
-async function requestPermission(){
-
-if(typeof DeviceMotionEvent !== "undefined" &&
-typeof DeviceMotionEvent.requestPermission === "function"){
-
-await DeviceMotionEvent.requestPermission();
-
-}
-
-}
-
-
-/* ================= START / STOP ================= */
+/* ================= START STOP ================= */
 
 async function toggleRecording(){
 
 if(!isRecording){
 
-await requestPermission();
-
 bufferRef.current=[];
-
 setIsRecording(true);
-
 setLog("Sensor mulai merekam");
 
 }else{
 
 setIsRecording(false);
-
 bufferRef.current=[];
-
 clearInterval(intervalRef.current);
 
 setStatus("idle");
-
 setLog("Sensor dihentikan");
 
 }
@@ -297,45 +272,45 @@ return(
 <div className="container">
 
 <header className="header">
-
 <h1>📡 Telemetri Sensor</h1>
-<p>Modul Accelerometer</p>
-
+<p>Accelerometer Monitoring</p>
 </header>
 
+
+<div className="grid">
 
 <div className="card">
 
 <h2>Status Perangkat</h2>
 
 <div className="deviceBox">
-
 <div className="device">{deviceId}</div>
-<div className="device">Sensor Aktif : {isRecording ? "YA" : "TIDAK"}</div>
-
+<div className="device">
+Sensor : {isRecording ? "Aktif" : "Nonaktif"}
+</div>
 </div>
 
 <div className="axisRow">
 
 <div className="axis">
-<span>Sumbu X</span>
+<span>X</span>
 <p>{x.toFixed(2)}</p>
 </div>
 
 <div className="axis">
-<span>Sumbu Y</span>
+<span>Y</span>
 <p>{y.toFixed(2)}</p>
 </div>
 
 <div className="axis">
-<span>Sumbu Z</span>
+<span>Z</span>
 <p>{z.toFixed(2)}</p>
 </div>
 
 </div>
 
 <button className="mainBtn" onClick={toggleRecording}>
-{isRecording ? "⏹ Stop Sensor" : "▶ Mulai Sensor"}
+{isRecording ? "Stop Sensor" : "Mulai Sensor"}
 </button>
 
 <p className="status">Upload Status : {status}</p>
@@ -345,9 +320,11 @@ return(
 
 <div className="card">
 
-<h2>Grafik Real-Time</h2>
+<h2>Grafik Real Time</h2>
 
+<div className="chartWrap">
 <Line data={chartData}/>
+</div>
 
 </div>
 
@@ -355,7 +332,6 @@ return(
 <div className="card">
 
 <h2>Riwayat Aktivitas</h2>
-
 <p>{log}</p>
 
 </div>
@@ -363,13 +339,17 @@ return(
 
 <div className="card">
 
-<h2>Tarik Data Server</h2>
+<h2>Data Server</h2>
 
 <button className="serverBtn" onClick={getLatest}>
-🔄 Cek Data Terbaru
+Cek Data Terbaru
 </button>
 
+<div className="chartWrap">
 <Line data={serverChart}/>
+</div>
+
+</div>
 
 </div>
 
@@ -377,62 +357,70 @@ return(
 <style jsx>{`
 
 .container{
-background:linear-gradient(180deg,#FFF8DC,#F5DEB3);
+background:linear-gradient(180deg,#FFF6CC,#F5DEB3);
 min-height:100vh;
-padding:40px;
+padding:30px;
 font-family:Arial;
+color:#333;
 }
 
 .header{
 background:#8B4513;
 color:white;
-padding:20px;
-border-radius:15px;
+padding:25px;
+border-radius:14px;
 text-align:center;
-margin-bottom:30px;
+margin-bottom:25px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:25px;
 }
 
 .card{
 background:white;
-border-radius:15px;
-padding:25px;
-margin-bottom:25px;
-box-shadow:0 6px 20px rgba(0,0,0,0.1);
+border-radius:14px;
+padding:20px;
+box-shadow:0 8px 25px rgba(0,0,0,0.1);
 }
 
 .deviceBox{
 display:flex;
-gap:20px;
-margin-bottom:20px;
+gap:10px;
+flex-wrap:wrap;
+margin-bottom:15px;
 }
 
 .device{
-background:#FFF8DC;
-padding:10px 15px;
+background:#FFF6CC;
+padding:8px 12px;
 border-radius:8px;
+font-weight:500;
 }
 
 .axisRow{
 display:flex;
-gap:20px;
+gap:12px;
 margin-bottom:20px;
 }
 
 .axis{
 flex:1;
-background:#FFF8DC;
-padding:15px;
+background:#FFF6CC;
 border-radius:10px;
+padding:12px;
 text-align:center;
 }
 
 .axis span{
-font-size:14px;
-color:#777;
+font-size:13px;
+color:#555;
 }
 
 .axis p{
-font-size:24px;
+font-size:22px;
 font-weight:bold;
 color:#8B4513;
 }
@@ -446,21 +434,59 @@ padding:12px;
 border-radius:10px;
 cursor:pointer;
 font-weight:bold;
+transition:0.2s;
+}
+
+.mainBtn:hover{
+background:#8B4513;
 }
 
 .serverBtn{
 background:#DAA520;
 border:none;
-padding:10px 20px;
+padding:10px 18px;
 border-radius:10px;
 color:white;
 cursor:pointer;
-margin-bottom:20px;
+margin-bottom:15px;
 }
 
 .status{
 margin-top:10px;
+font-size:14px;
 color:#555;
+}
+
+.chartWrap{
+width:100%;
+overflow-x:auto;
+}
+
+
+/* ================= MOBILE ================= */
+
+@media(max-width:768px){
+
+.container{
+padding:15px;
+}
+
+.grid{
+grid-template-columns:1fr;
+}
+
+.axisRow{
+flex-direction:column;
+}
+
+.axis{
+padding:15px;
+}
+
+.header h1{
+font-size:22px;
+}
+
 }
 
 `}</style>
