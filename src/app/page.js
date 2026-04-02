@@ -151,6 +151,21 @@ export default function Home() {
               </div>
             </Link>
 
+            {/* MODUL 4: SWAP TEST */}
+<Link href="/swap-test" className="group">
+  <div className="glass-card rounded-3xl p-8 h-full flex flex-col border-2 border-dashed border-purple-200">
+    <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-200 text-white group-hover:scale-110 transition-transform">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+    </div>
+    <div className="flex justify-between items-start mb-4">
+      <h2 className="text-2xl font-bold text-slate-800">Swap Test</h2>
+      <span className="px-3 py-1 bg-purple-100 text-purple-600 text-xs font-bold rounded-lg uppercase tracking-wider">Debug Mode</span>
+    </div>
+    <p className="text-slate-600 leading-relaxed mb-6 flex-grow">
+      Uji link GAS kelompok lain dengan fitur Presensi, Accelerometer, dan GPS yang sudah ada.
+    </p>
+  </div>
+</Link>
           </div>
         </div>
       </main>
