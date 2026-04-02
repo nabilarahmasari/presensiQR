@@ -32,30 +32,47 @@ export default function SwapTestPage() {
     return () => scanner.clear().catch(() => {});
   }, [activeTab]);
 
-  const handleCheckInSwap = async () => {
-    if (!targetGasUrl) return alert("Isi URL GAS Kelompok lain dulu!");
-    if (!scanResult || !nim) return alert("Lengkapi Scan & NIM!");
-    
-    setStatusPresensi("loading");
-    const payload = { 
-      qr_token: scanResult, 
-      user_id: nim, 
-      nama: nama, 
-      device_id: "SWAP-TEST-DEVICE" 
-    };
+ const handleCheckInSwap = async () => {
+  if (!targetGasUrl) return alert("Isi URL GAS Kelompok lain dulu!");
+  if (!scanResult || !nim) return alert("Lengkapi Scan & NIM!");
+  
+  setStatusPresensi("Sending...");
 
-    try {
-      const res = await fetch(getUrl(), {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ path: "presence/checkin", ...payload }),
-      });
-      setStatusPresensi("success (Sent to External GAS)");
-    } catch (e) {
-      setStatusPresensi("error: " + e.message);
-    }
+  // Ekstrak token jika hasil scan berupa URL (seperti di foto kamu)
+  let finalToken = scanResult;
+  if (scanResult.includes("token=")) {
+    finalToken = scanResult.split("token=")[1].split("&")[0];
+  }
+
+  // Format data yang "Paling Sering" dipakai di Lab Cloud
+  const payload = { 
+    // Format 1: Pakai Path (Standar kode kita)
+    path: "presence/checkin", 
+    qr_token: finalToken,
+    user_id: nim, 
+    nama: nama,
+    
+    // Format 2: Flat (Standar kelompok lain biasanya pakai ini)
+    token: finalToken,
+    nim: nim,
+    nama_mahasiswa: nama,
+    device_id: "SWAP-TEST-DEVICE"
   };
+
+  try {
+    // Kita kirim sebagai text/plain agar tidak memicu CORS error di GAS
+    await fetch(targetGasUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(payload),
+    });
+    
+    setStatusPresensi("TERKIRIM KE GAS LUAR! (Cek Spreadsheet Teman)");
+  } catch (e) {
+    setStatusPresensi("GAGAL: " + e.message);
+  }
+};
 
   // ==========================================
   // SUB-MODUL 2: ACCEL LOGIC (COPY)
