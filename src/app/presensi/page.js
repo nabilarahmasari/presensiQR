@@ -228,6 +228,7 @@ export default function Presensi() {
           .responsive-grid { gap: 20px; }
           header .container { flex-direction: column; gap: 12px; text-align: center; }
         }
+          
       `}</style>
 
       {/* Background Decorative Shapes */}
